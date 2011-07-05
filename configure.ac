@@ -65,6 +65,8 @@ AM_CONDITIONAL([WANT_JANSSON], [test x$request_jansson = xtrue])
 AM_CONDITIONAL([HAVE_WINDOWS], [test x$have_win32 = xtrue])
 AM_CONDITIONAL([HAVE_x86_64], [test x$have_x86_64 = xtrue])
 
+AC_DEFINE([_WIN32_WINNT], [0x0600], [Set the windows API version.])
+
 if test x$request_jansson = xtrue
 then
 	JANSSON_LIBS="compat/jansson/libjansson.a"

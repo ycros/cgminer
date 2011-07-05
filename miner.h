@@ -3,10 +3,16 @@
 
 #include "config.h"
 
+#include "compat.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/time.h>
-#include <pthread.h>
+
+#ifndef WIN32
+	#include <pthread.h>
+#endif
+
 #include <jansson.h>
 #include <curl/curl.h>
 #ifdef __APPLE_CC__

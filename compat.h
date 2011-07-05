@@ -3,7 +3,10 @@
 
 #ifdef WIN32
 
+#include <winsock2.h>
 #include <windows.h>
+#include "winpthreads.h"
+
 
 static inline void sleep(int secs)
 {

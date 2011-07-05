@@ -15,11 +15,11 @@
 	#include <sys/socket.h>
 	#include <netinet/in.h>
 	#include <netdb.h> 
+	#include <pthread.h>
 #endif
 
 #include <time.h>
 #include <sys/time.h>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

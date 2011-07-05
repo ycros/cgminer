@@ -10,7 +10,11 @@
 
 #include <stdio.h>
 #include <inttypes.h>
-#include <pthread.h>
+
+#ifndef WIN32
+	#include <pthread.h>
+#endif
+
 #include <string.h>
 
 #include "ocl.h"
