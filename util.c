@@ -66,7 +66,7 @@ void vapplog(int prio, const char *fmt, va_list ap)
 #else
 	if (0) {}
 #endif
-	else if (opt_log_output || prio == LOG_WARNING || prio == LOG_ERR) {
+	else if (opt_json_output || opt_log_output || prio == LOG_WARNING || prio == LOG_ERR) {
 		char *f;
 		int len;
 		struct timeval tv = { };
@@ -81,7 +81,13 @@ void vapplog(int prio, const char *fmt, va_list ap)
 
 		len = 40 + strlen(fmt) + 2;
 		f = alloca(len);
-		sprintf(f, "[%d-%02d-%02d %02d:%02d:%02d] %s\n",
+		
+		char *out_fmt = "[%d-%02d-%02d %02d:%02d:%02d] %s\n";
+		
+		if (opt_json_output)
+			out_fmt = "{\"event\": \"log\", \"datetime\": \"%d-%02d-%02d %02d:%02d:%02d\", \"message\": \"%s\"}\n";
+		
+		sprintf(f, out_fmt,
 			tm.tm_year + 1900,
 			tm.tm_mon + 1,
 			tm.tm_mday,

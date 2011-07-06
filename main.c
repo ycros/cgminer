@@ -122,6 +122,7 @@ static int opt_retries = -1;
 static int opt_fail_pause = 5;
 static int opt_log_interval = 5;
 bool opt_log_output = false;
+bool opt_json_output = false;
 static int opt_queue = 0;
 int opt_vectors;
 int opt_worksize;
@@ -281,6 +282,9 @@ static struct opt_table opt_config_table[] = {
 		     set_int_0_to_14, opt_show_intval, &scan_intensity,
 		     "Intensity of GPU scanning (0 - 14)"),
 #endif
+	OPT_WITHOUT_ARG("--json",
+			opt_set_bool, &opt_json_output,
+			"Log output in machine-readable JSON form."),
 	OPT_WITH_ARG("--log|-l",
 		     set_int_0_to_9999, opt_show_intval, &opt_log_interval,
 		     "Interval in seconds between log output"),
@@ -513,6 +517,9 @@ static bool submit_upstream_work(const struct work *work)
 	}
 
 	res = json_object_get(val, "result");
+	
+	if (opt_json_output)
+		printf("{\"event\": \"result\", \"status\": ");
 
 	/* Theoretically threads could race when modifying accepted and
 	 * rejected values but the chance of two submits completing at the
@@ -522,18 +529,28 @@ static bool submit_upstream_work(const struct work *work)
 		accepted++;
 		if (opt_debug)
 			applog(LOG_DEBUG, "PROOF OF WORK RESULT: true (yay!!!)");
-		printf("[Accepted] ");
+		if (opt_json_output)
+			printf("\"accepted\", ");
+		else
+			printf("[Accepted] ");
 	} else {
 		cgpu->rejected++;
 		rejected++;
 		if (opt_debug)
 			applog(LOG_DEBUG, "PROOF OF WORK RESULT: false (booooo)");
-		printf("[Rejected] ");
+		if (opt_json_output)
+			printf("\"rejected\", ");
+		else
+			printf("[Rejected] ");
 	}
-	if (!opt_quiet) {
-		printf("[%sPU: %d] [Rate: %.2f Mhash/s] [Accepted: %d  Rejected: %d  HW errors: %d]                 \n",
-		cgpu->is_gpu? "G" : "C", cgpu->cpu_gpu, cgpu->total_mhashes / total_secs,
-			cgpu->accepted, cgpu->rejected, cgpu->hw_errors);
+	if (!opt_quiet || opt_json_output) {
+		char *fmt = "[%sPU: %d] [Rate: %.2f Mhash/s] [Accepted: %d  Rejected: %d  HW errors: %d]                 \n";
+		
+		if (opt_json_output)
+			fmt = "\"source_type\": \"%sPU\", \"source_id\": %d, \"rate\": %.2f, \"accepted\": %d, \"rejected\": %d, \"hw_errors\": %d}\n";
+		
+		printf(fmt, cgpu->is_gpu? "G" : "C", cgpu->cpu_gpu, cgpu->total_mhashes / total_secs,
+			   cgpu->accepted, cgpu->rejected, cgpu->hw_errors);
 	}
 	applog(LOG_INFO, "%sPU: %d  Accepted: %d  Rejected: %d  HW errors: %d",
 	       cgpu->is_gpu? "G" : "C", cgpu->cpu_gpu, cgpu->accepted, cgpu->rejected, cgpu->hw_errors);
@@ -798,9 +815,15 @@ static void hashmeter(int thr_id, struct timeval *diff,
 	timeval_subtract(&total_diff, &total_tv_end, &total_tv_start);
 	total_secs = (double)total_diff.tv_sec +
 		((double)total_diff.tv_usec / 1000000.0);
-	printf("[Rate (%ds): %.2f  (avg): %.2f Mhash/s] [Accepted: %d  Rejected: %d  HW errors: %d]          \r",
+
+	char *fmt = "[Rate (%ds): %.2f  (avg): %.2f Mhash/s] [Accepted: %d  Rejected: %d  HW errors: %d]          \r";
+	
+	if (opt_json_output)
+		fmt = "{\"event\": \"rate\", \"rolling_interval\": %d, \"rolling_rate\": %.2f, \"average_rate\": %.2f, \"accepted\": %d, \"rejected\": %d, \"hw_errors\": %d}\n";
+		
+	printf(fmt,
 	       opt_log_interval, rolling_local / local_secs, total_mhashes_done / total_secs,
-		accepted, rejected, hw_errors);
+		   accepted, rejected, hw_errors);
 	fflush(stdout);
 	applog(LOG_INFO, "[Rate (%ds): %.2f  (avg): %.2f Mhash/s] [Accepted: %d  Rejected: %d  HW errors: %d]",
 	       opt_log_interval, rolling_local / local_secs, total_mhashes_done / total_secs,
@@ -1399,8 +1422,10 @@ static void *longpoll_thread(void *userdata)
 			failures = 0;
 			json_decref(val);
 
-			if (!opt_quiet)
+			if (!opt_quiet && !opt_json_output)
 				printf("LONGPOLL detected new block                                                              \n");
+			else if (opt_json_output)
+				printf("{\"event\":\"longpoll\"}\n");
 			applog(LOG_INFO, "LONGPOLL detected new block");
 			restart_threads();
 		} else {
